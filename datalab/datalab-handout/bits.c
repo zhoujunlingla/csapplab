@@ -45,7 +45,7 @@ INTEGER CODING RULES:
   1. Integer constants 0 through 255 (0xFF), inclusive. You are
       not allowed to use big constants such as 0xffffffff.
   2. Function arguments and local variables (no global variables).
-  3. Unary integer operations ! ~
+  3. Unary//一元的 integer operations ! ~
   4. Binary integer operations & ^ | + << >>
     
   Some of the problems restrict the set of allowed operators even further.
@@ -54,7 +54,7 @@ INTEGER CODING RULES:
 
   You are expressly forbidden to:
   1. Use any control constructs such as if, do, while, for, switch, etc.
-  2. Define or use any macros.
+  2. Define or use any macros//宏.
   3. Define any additional functions in this file.
   4. Call any functions.
   5. Use any other operations, such as &&, ||, -, or ?:
@@ -65,7 +65,7 @@ INTEGER CODING RULES:
  
   You may assume that your machine:
   1. Uses 2s complement, 32-bit representations of integers.
-  2. Performs right shifts arithmetically.
+  2. Performs right shifts arithmetically // 算数上的.
   3. Has unpredictable behavior when shifting if the shift amount
      is less than 0 or greater than 31.
 
@@ -94,7 +94,7 @@ FLOATING POINT CODING RULES
 For the problems that require you to implement floating-point operations,
 the coding rules are less strict.  You are allowed to use looping and
 conditional control.  You are allowed to use both ints and unsigneds.
-You can use arbitrary integer and unsigned constants. You can use any arithmetic,
+You can use arbitrary// 随意地 integer and unsigned constants. You can use any arithmetic,
 logical, or comparison operations on int or unsigned data.
 
 You are expressly forbidden to:
@@ -115,10 +115,10 @@ NOTES:
      of the function.  The max operator count is checked by dlc.
      Note that assignment ('=') is not counted; you may use as many of
      these as you want without penalty.
-  3. Use the btest test harness to check your functions for correctness.
+  3. Use the btest test harness//测试工具 to check your functions for correctness.
   4. Use the BDD checker to formally verify your functions
   5. The maximum number of ops for each function is given in the
-     header comment for each function. If there are any inconsistencies 
+     header comment for each function. If there are any inconsistencies//不一致 
      between the maximum ops in the writeup and in this file, consider
      this file the authoritative source.
 
@@ -144,7 +144,7 @@ NOTES:
  */
 int bitXor(int x, int y) {
   
-  return  ~(~(x & ~y) & ~(y & ~x));
+  return  ~(~x & ~y) & ~(x & y);
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -154,7 +154,7 @@ int bitXor(int x, int y) {
  */
 int tmin(void) {
 
-  return 0x80u << 24;
+  return 0x1 << 31;
 
 }
 //2
@@ -166,7 +166,12 @@ int tmin(void) {
  *   Rating: 1
  */
 int isTmax(int x) {
-  return 2;
+  int i = x + 1;
+  x = x + i;
+  x = ~x ;
+  i = !i;
+  x = x + i;
+  return !x;
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -177,7 +182,9 @@ int isTmax(int x) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  return 2;
+  int mask = 0xAA + (0xAA << 8);
+  mask = mask + (mask << 16);
+  return !((mask & x) ^ mask);
 }
 /* 
  * negate - return -x 
@@ -187,7 +194,7 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return ~x + 1;
 }
 //3
 /* 
@@ -200,7 +207,12 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  return 2;
+  int sign = 0x1 << 31;
+  int upperBound = ~(sign | 0x39);
+  int lowerBound = ~0x30;
+  upperBound = sign & (upperBound + x) >> 31;
+  lowerBound = sign & (lowerBound + 1 + x) >> 31;
+  return !(upperBound | lowerBound);
 }
 /* 
  * conditional - same as x ? y : z 
@@ -210,7 +222,10 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  //int mask= ~!x+1; 
+  x = !!x;
+  x = ~x + 1;
+  return (x & y) | (~x & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -220,7 +235,15 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  int negX = ~x + 1;
+  int addX = negX + y;
+  int checkSign = addX >> 31 & 1;
+  int leftBit = 1 << 31;
+  int xLeft = x & leftBit;
+  int yLeft = y & leftBit;
+  int bitXor = xLeft ^ yLeft;
+  bitXor = (bitXor >> 31) & 1;
+  return ((!bitXor) & (!checkSign)) | (bitXor & (xLeft >> 31));
 }
 //4
 /* 
@@ -232,7 +255,7 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  return ((x | (~x + 1)) >> 31) + 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -247,25 +270,22 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  x = conditional(x & INTMIN , ~x , x);
-  int bits16 = (toBool((x >> 16)) << 4);
-  x = x >> bit16;
+  int b16,b8,b4,b2,b1,b0;
+  int sign = x >> 31;
+  x = (sign & ~x) | (~sign & x);
 
-  int bit8 = (toBool((x >> 8)) << 3);
-  x = x >> bit8;
-  int bit4 = (toBool((x >> 4)) << 2);
-  x = x >> bit4;
-  int bit2 = (toBool((x >> 2)) << 1);
-   x = x >> bit2;
-   int bit1 = (toBool((x >> 1)) << 0);
-   x = x >> bit1;
-
-   int bit0 = (toBool((x));
-    return bit16 + bit8 + bit4 + bit2 + bit1 + bit0 + 1;
-
-
-
-  return 0;
+  b16 = !!(x >> 16) << 4;
+  x = x >> b16;
+  b8 = !!(x >> 8) << 3;
+  x = x >> b8;
+  b4 = !!(x >> 4) << 2;
+  x = x >> b4;
+  b2 = !!(x >> 2) << 1;
+  x = x >> b2;
+  b1 = !!(x >> 1);
+  x = x >> b1;
+  b0 = x;
+  return b16 + b8 + b4 + b2 + b1 + b0 + 1;
 }
 //float
 /* 
@@ -280,16 +300,13 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  unsigned s = uf & (1 << 31);
-  unsigned exp = (uf & 0x7f800000) >> 23;
-  unsigned frac = uf & (~0xff800000);
-
-  if(exp == 0) return frac << 1 | s;
+  int exp = (uf & 0x7f800000) >> 23;
+  int sign = uf & ( 1 << 31);
+  if(exp == 0) return uf << 1 | sign;
   if(exp == 255) return uf;
-  exp ++;
-  if(exp == 255) return 0x7800000 | s;
-  return s | (exp << 23) | frac;
-  return 2;
+  exp ++ ;
+  if(exp == 255) return 0x7f800000 | sign;
+  return (exp << 23) | (uf & 0x807fffff);
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -304,16 +321,19 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  unsigned s = uf & (1 << 31);
-  int exp = (uf & 0x7f800000) >> 23;
-  unsigned frac = uf & (~0xff800000);
-  int E = exp - 127;
-  if(exp == 255 || E > 31) return INTMIN;
-  if(E < 0) return 0;
-  unsigned M = frac | (1 << 23);
-  int V = (E > 23 ? M << (E - 23) : M >> (23 - E));
-  if(s) V *= -1;
-  return V;
+  int s_ = uf >> 31;
+  int exp_ = ((uf & 0x7f800000) >> 23) - 127;
+  int frac_ = (uf & 0x007fffff) | 0x00800000;
+  if(!(uf & 0x7fffffff)) return 0;
+  if(exp_ > 31) return 0x80000000;
+  if(exp_ < 0) return 0;
+
+  if(exp_ > 23) frac_ <<= (exp_-23);
+  else frac_ >>= (23 - exp_);
+
+  if(!((frac_ >> 31) ^ s_)) return frac_;
+  else if( frac_ >> 31) return 0x8000000;
+  else return ~frac_ + 1;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -329,8 +349,9 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    if(x >= 128) return 0x7f800000;
-    if(x >= -126) return (x + 127) << 23;
-    if(x >= -150) return 1 << (x + 150);
-    else return 0;
+    int INF = 0xff<<23;
+    int exp = x + 127;
+    if(exp <= 0) return 0;
+    if(exp >= 255) return INF;
+    return exp << 23;
 }
